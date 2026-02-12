@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "source": "extracted-from-pdf",
+    "generated_by": "extract_fig_colors.py",
+    "notes": "Semantic palette selected automatically from PDF colors"
+  },
+  "palette": {
+    "bg": "#f5f7f8",
+    "panel": "#f1f3f4",
+    "surface": "#ffffff",
+    "border": "#dfe6eb",
+    "heading": "#36363f",
+    "body": "#6b757c",
+    "muted": "#9fa0a1",
+    "accent": "#fac918",
+    "danger": "#ff4433",
+    "neutral-1": "#e5e5e5",
+    "neutral-2": "#ecedee"
+  },
+  "tailwind_tokens": {
+    "primary": "#36363f",
+    "secondary": "#6b757c",
+    "muted": "#9fa0a1",
+    "accent": "#fac918",
+    "background": "#f5f7f8",
+    "surface": "#ffffff",
+    "border": "#dfe6eb",
+    "danger": "#ff4433"
+  }
+}

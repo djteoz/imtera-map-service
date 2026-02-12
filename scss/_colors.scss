@@ -1,0 +1,35 @@
+/* Auto-generated style guide — semantic color variables */
+:root {
+  --color-bg: #f5f7f8; /* page background */
+  --color-panel: #f1f3f4; /* panel / card background */
+  --color-surface: #ffffff; /* surface / card inner */
+  --color-border: #dfe6eb; /* thin borders */
+
+  --color-heading: #36363f; /* primary heading */
+  --color-body: #6b757c; /* main text */
+  --color-muted: #9fa0a1; /* muted text */
+
+  --color-accent: #fac918; /* accent / stars / primary action */
+  --color-danger: #ff4433; /* error */
+}
+
+/* Example semantic classes */
+.text-heading {
+  color: var(--color-heading);
+}
+.text-body {
+  color: var(--color-body);
+}
+.bg-page {
+  background-color: var(--color-bg);
+}
+.bg-panel {
+  background-color: var(--color-panel);
+}
+.border-default {
+  border-color: var(--color-border);
+}
+.btn-primary {
+  background-color: var(--color-accent);
+  color: #000;
+}
