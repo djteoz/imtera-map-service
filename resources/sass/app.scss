@@ -1,0 +1,8 @@
+@import "../../scss/_colors.scss";
+/* Tailwind base */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { background: var(--color-bg); color: var(--color-body); font-family: Inter, ui-sans-serif, system-ui; }
+.container { max-width: 1100px; margin: 32px auto; }
