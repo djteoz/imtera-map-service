@@ -1,28 +1,74 @@
-import { createApp } from 'vue'
-import SettingsPage from './pages/SettingsPage.vue'
-import axios from 'axios'
+import { createApp } from "vue";
+import SettingsPage from "./pages/SettingsPage.vue";
+import ReviewsPage from "./pages/ReviewsPage.vue";
+import ReviewDetailPage from "./pages/ReviewDetailPage.vue";
+import LoginPage from "./pages/LoginPage.vue";
+import { axios } from "./bootstrap";
 
-// Simple axios mock for demo (uses localStorage)
-const DEMO_KEY = 'demo_settings'
+// Import semantic colors and Tailwind for the demo
+import "../../scss/_colors.scss";
+import "../css/tailwind.css";
 
-axios.get = async (url) => {
-  if (url.includes('/api/public/settings')) {
-    const payload = JSON.parse(localStorage.getItem(DEMO_KEY) || '{}')
-    return { data: payload }
+const DEMO_KEY = "demo_settings";
+const DEMO_AUTH_KEY = "demo_auth";
+
+function getAuthPayload() {
+  const raw = localStorage.getItem(DEMO_AUTH_KEY);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
   }
-  return { data: {} }
 }
 
-axios.post = async (url, body) => {
-  if (url.includes('/api/public/settings')) {
-    localStorage.setItem(DEMO_KEY, JSON.stringify(body))
-    return { data: { ok: true } }
+function syncAuthHeader() {
+  const token = getAuthPayload()?.token;
+
+  if (token) {
+    axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete axios.defaults.headers.common.Authorization;
   }
-  if (url.includes('/api/public/import')) {
-    return { data: { job_id: 'demo_' + Date.now() } }
-  }
-  return { data: {} }
 }
 
-const app = createApp(SettingsPage)
-app.mount('#demo-app')
+function isAuthorized() {
+  return Boolean(getAuthPayload()?.token);
+}
+
+const params = new URLSearchParams(window.location.search);
+
+if (params.get("logout") === "1") {
+  localStorage.removeItem(DEMO_AUTH_KEY);
+  localStorage.removeItem(DEMO_KEY);
+}
+
+syncAuthHeader();
+
+const page = params.get("page");
+
+if (page !== "login" && !isAuthorized()) {
+  const nextUrl = `${window.location.pathname}${window.location.search}`;
+  window.location.replace(
+    `/demo.html?page=login&next=${encodeURIComponent(nextUrl)}`,
+  );
+}
+
+if (page === "login" && isAuthorized()) {
+  const nextRaw = params.get("next");
+  const nextTarget = nextRaw ? decodeURIComponent(nextRaw) : "/demo.html";
+  window.location.replace(
+    nextTarget.startsWith("/demo.html") ? nextTarget : "/demo.html",
+  );
+}
+
+const pageMap = {
+  login: LoginPage,
+  settings: SettingsPage,
+  review: ReviewDetailPage,
+};
+const component = pageMap[page] || ReviewsPage;
+
+const app = createApp(component);
+app.mount("#demo-app");
