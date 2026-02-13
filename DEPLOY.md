@@ -3,6 +3,7 @@
 ## Быстрый старт
 
 ### 1. Подготовка проекта
+
 ```bash
 cd imtera-map-service
 git init
@@ -39,14 +40,17 @@ LOG_LEVEL=error
 ### 4. Генерация APP_KEY
 
 После первого деплоя выполните в Railway Shell:
+
 ```bash
 php artisan key:generate --show
 ```
+
 Скопируйте полученный ключ и добавьте в переменную `APP_KEY`.
 
 ### 5. Создание базы данных
 
 В Railway Shell выполните:
+
 ```bash
 mkdir -p database
 touch database/database.sqlite
@@ -56,6 +60,7 @@ php artisan migrate --force
 ### 6. Доступ к приложению
 
 После успешного деплоя:
+
 - Frontend: `https://ваш-домен.railway.app/demo.html?page=login`
 - API: `https://ваш-домен.railway.app/api/reviews`
 
@@ -64,6 +69,7 @@ php artisan migrate --force
 ## Локальная разработка
 
 Если нужно работать локально БЕЗ PHP:
+
 ```bash
 npm run dev
 # Открыть http://localhost:5173/demo.html?page=login
