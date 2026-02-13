@@ -18,5 +18,6 @@ return [
     ],
     'providers' => ServiceProvider::defaultProviders()->merge([
         App\Providers\AppServiceProvider::class,
+        App\Providers\RouteServiceProvider::class,
     ])->toArray(),
 ];
