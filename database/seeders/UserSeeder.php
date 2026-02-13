@@ -10,10 +10,10 @@ class UserSeeder extends Seeder
     public function run()
     {
         User::updateOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => 'demo@imtera.ru'],
             [
-                'name' => 'Admin',
-                'password' => Hash::make('password')
+                'name' => 'Imtera Demo',
+                'password' => Hash::make('demo12345')
             ]
         );
     }

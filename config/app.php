@@ -11,7 +11,7 @@ return [
     'locale' => 'en',
     'fallback_locale' => 'en',
     'faker_locale' => 'en_US',
-    'key' => env('APP_KEY'),
+    'key' => env('APP_KEY', 'base64:MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI='),
     'cipher' => 'AES-256-CBC',
     'maintenance' => [
         'driver' => 'file',
