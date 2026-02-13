@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\ServiceProvider;
+
 return [
     'name' => env('APP_NAME', 'Laravel'),
     'env' => env('APP_ENV', 'production'),
@@ -14,7 +16,7 @@ return [
     'maintenance' => [
         'driver' => 'file',
     ],
-    'providers' => array_merge(include(base_path('bootstrap/providers.php')), [
-        // App\Providers\AppServiceProvider::class,
-    ]),
+    'providers' => ServiceProvider::defaultProviders()->merge([
+        App\Providers\AppServiceProvider::class,
+    ])->toArray(),
 ];
