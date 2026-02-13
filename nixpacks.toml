@@ -20,4 +20,4 @@ cmds = [
 ]
 
 [start]
-cmd = 'php -S 0.0.0.0:$PORT -t /app/public /app/public/index.php'
+cmd = 'php -S 0.0.0.0:$PORT -t /app/public /app/server.php'
