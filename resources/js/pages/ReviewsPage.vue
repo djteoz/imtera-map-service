@@ -134,6 +134,22 @@
         </div>
       </aside>
     </div>
+
+    <section
+      v-if="yandexWidgetUrl"
+      class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+    >
+      <div class="mb-3 text-sm font-semibold text-slate-800">
+        Виджет отзывов Яндекс
+      </div>
+
+      <iframe
+        :src="yandexWidgetUrl"
+        class="h-[620px] w-full rounded-md border border-slate-200"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
+      ></iframe>
+    </section>
   </AppFrame>
 </template>
 
@@ -149,6 +165,7 @@ const pageSize = 5;
 const totalReviews = ref(0);
 const averageRating = ref(0);
 const loading = ref(false);
+const yandexWidgetUrl = ref("");
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(totalReviews.value / pageSize)),
@@ -217,5 +234,14 @@ watch(currentPage, async () => {
 
 onMounted(() => {
   fetchReviews();
+
+  axios
+    .get("/api/settings")
+    .then(({ data }) => {
+      yandexWidgetUrl.value = data?.yandex_widget_url || "";
+    })
+    .catch(() => {
+      yandexWidgetUrl.value = "";
+    });
 });
 </script>

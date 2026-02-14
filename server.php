@@ -405,6 +405,61 @@ function parseYandexReviews(string $html, string $orgId): array
     ];
 }
 
+function parseYandexWidgetReviews(string $orgId): array
+{
+    $widgetUrl = 'https://yandex.ru/maps-reviews-widget/' . rawurlencode($orgId) . '?comments';
+    $html = fetchHtml($widgetUrl);
+
+    if ($html === null) {
+        return [
+            'reviews' => [],
+            'total_available' => 0,
+        ];
+    }
+
+    $totalAvailable = 0;
+    if (preg_match('/>(\d+)\s+отзыв/u', $html, $countMatch)) {
+        $totalAvailable = (int)$countMatch[1];
+    }
+
+    $reviews = [];
+
+    $pattern = '#<div class="comment">.*?<p class="comment__name">(.*?)</p>.*?<p class="comment__date">(.*?)</p>.*?<div class="comment__text">(.*?)</div>#su';
+    if (preg_match_all($pattern, $html, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $index => $match) {
+            $author = trim(strip_tags(html_entity_decode((string)($match[1] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+            $dateRaw = trim(strip_tags(html_entity_decode((string)($match[2] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+            $textRaw = (string)($match[3] ?? '');
+
+            $text = trim(preg_replace('/\s+/u', ' ', strip_tags(html_entity_decode($textRaw, ENT_QUOTES | ENT_HTML5, 'UTF-8'))));
+
+            if ($author === '' || $text === '') {
+                continue;
+            }
+
+            $timestamp = strtotime($dateRaw);
+            $date = $timestamp ? gmdate('Y-m-d', $timestamp) : gmdate('Y-m-d');
+
+            $reviews[] = [
+                'id' => $index + 1,
+                'source' => 'yandex_widget',
+                'org_id' => $orgId,
+                'author' => $author,
+                'rating' => 5,
+                'date' => $date,
+                'text' => $text,
+                'reply' => '',
+                'replied_at' => null,
+            ];
+        }
+    }
+
+    return [
+        'reviews' => $reviews,
+        'total_available' => max($totalAvailable, count($reviews)),
+    ];
+}
+
 ensureDemoUser($usersFile);
 
 if ($uri === '/' || $uri === '/demo.html') {
@@ -536,6 +591,7 @@ if (str_starts_with($uri, '/api/')) {
                 'yandex_url' => $rawYandex,
                 'yandex_org_id' => $parsed['org_id'] ?? null,
                 'yandex_reviews_url' => $parsed['reviews_url'] ?? null,
+                'yandex_widget_url' => isset($parsed['org_id']) ? ('https://yandex.ru/maps-reviews-widget/' . $parsed['org_id'] . '?comments') : null,
             ];
             writeJson($settingsFile, $settings);
             jsonResponse(['ok' => true, 'settings' => $settings]);
@@ -563,6 +619,12 @@ if (str_starts_with($uri, '/api/')) {
         $parsedResult = parseYandexReviews($html, $parsed['org_id']);
         $reviews = $parsedResult['reviews'];
         $totalAvailable = (int)$parsedResult['total_available'];
+
+        if (count($reviews) === 0) {
+            $widgetParsed = parseYandexWidgetReviews($parsed['org_id']);
+            $reviews = $widgetParsed['reviews'];
+            $totalAvailable = max($totalAvailable, (int)$widgetParsed['total_available']);
+        }
 
         if (count($reviews) === 0 && $totalAvailable === 0) {
             jsonResponse(['message' => 'Не удалось извлечь отзывы со страницы Яндекс.'], 422);
