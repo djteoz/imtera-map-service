@@ -367,7 +367,7 @@ function collectReviewNodes($node, array &$bucket): void
 function mapReviewNode(array $node, string $orgId): ?array
 {
     $authorNode = $node['author'] ?? null;
-    $author = 'Пользователь';
+    $author = '';
 
     if (is_array($authorNode) && !empty($authorNode['name'])) {
         $author = trim((string)$authorNode['name']);
@@ -375,10 +375,22 @@ function mapReviewNode(array $node, string $orgId): ?array
         $author = trim($authorNode);
     }
 
+    if ($author === '') {
+        return null;
+    }
+
     $ratingRaw = $node['reviewRating']['ratingValue'] ?? $node['ratingValue'] ?? null;
+    if ($ratingRaw === null || $ratingRaw === '') {
+        return null;
+    }
+
     $rating = max(1, min(5, (int)round((float)$ratingRaw ?: 0)));
 
     $dateRaw = (string)($node['datePublished'] ?? '');
+    if (trim($dateRaw) === '') {
+        return null;
+    }
+
     $timestamp = strtotime($dateRaw) ?: time();
     $date = gmdate('Y-m-d', $timestamp);
 
@@ -576,26 +588,27 @@ function parseYandexReviewsFromPageBlocks(string $html, string $orgId): array
         $windowLength = min(6500, max(0, strlen($html) - $windowStart));
         $window = substr($html, $windowStart, $windowLength);
 
-        $author = 'Пользователь Яндекс';
+        $author = '';
         if (preg_match_all('#<span itemProp="name"[^>]*>(.*?)</span>#su', $window, $authorMatches) && !empty($authorMatches[1])) {
             $author = decodeHtmlText((string)end($authorMatches[1]));
-            if ($author === '') {
-                $author = 'Пользователь Яндекс';
-            }
         }
 
-        $date = gmdate('Y-m-d');
+        $date = '';
         if (preg_match_all('#<meta itemProp="datePublished"[^>]*content="([^"]+)"#su', $window, $dateMatches) && !empty($dateMatches[1])) {
             $dateRaw = trim((string)end($dateMatches[1]));
             $timestamp = strtotime($dateRaw);
             $date = $timestamp ? gmdate('Y-m-d', $timestamp) : parseRussianDateToIso($dateRaw);
         }
 
-        $rating = 5;
+        $rating = null;
         if (preg_match_all('/aria-label="Оценка\s*([0-9]+)(?:[\.,]([0-9]+))?\s*(?:из|Из)?\s*5"/u', $window, $ratingMatches, PREG_SET_ORDER) && !empty($ratingMatches)) {
             $lastRating = end($ratingMatches);
             $integer = (int)($lastRating[1] ?? 5);
             $rating = max(1, min(5, $integer));
+        }
+
+        if ($author === '' || $date === '' || $rating === null) {
+            continue;
         }
 
         $hash = md5($author . '|' . $date . '|' . $rating . '|' . $text);
