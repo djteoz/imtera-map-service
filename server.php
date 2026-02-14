@@ -311,6 +311,112 @@ function mapReviewNode(array $node, string $orgId): ?array
     ];
 }
 
+function parseYandexReviewsFromMicrodata(string $html, string $orgId): array
+{
+    if (!class_exists('DOMDocument') || !class_exists('DOMXPath')) {
+        return [];
+    }
+
+    $dom = new DOMDocument();
+    if (!@mb_detect_encoding($html, 'UTF-8', true)) {
+        $html = mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
+    }
+
+    $loaded = @$dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+    if (!$loaded) {
+        return [];
+    }
+
+    $xpath = new DOMXPath($dom);
+    $bodyNodes = $xpath->query('//*[@itemProp="reviewBody" or @itemprop="reviewBody"]');
+    if ($bodyNodes === false || $bodyNodes->length === 0) {
+        return [];
+    }
+
+    $result = [];
+    $dedupe = [];
+
+    foreach ($bodyNodes as $bodyNode) {
+        $text = trim((string)$bodyNode->textContent);
+        $text = preg_replace('/\s+/u', ' ', $text ?? '') ?? '';
+        if ($text === '') {
+            continue;
+        }
+
+        $container = $bodyNode;
+        while ($container && $container->parentNode) {
+            $classAttr = '';
+            if (method_exists($container, 'getAttribute')) {
+                $classAttr = (string)$container->getAttribute('class');
+            }
+
+            if ($classAttr !== '' && str_contains($classAttr, 'business-review-view')) {
+                break;
+            }
+
+            $container = $container->parentNode;
+        }
+
+        $author = 'Пользователь Яндекс';
+        $date = gmdate('Y-m-d');
+        $rating = 5;
+
+        if ($container) {
+            $nameNode = $xpath->query('.//*[@itemProp="name" or @itemprop="name"]', $container);
+            if ($nameNode && $nameNode->length > 0) {
+                $authorCandidate = trim((string)$nameNode->item(0)->textContent);
+                if ($authorCandidate !== '') {
+                    $author = $authorCandidate;
+                }
+            }
+
+            $dateNode = $xpath->query('.//*[@itemProp="datePublished" or @itemprop="datePublished"]', $container);
+            if ($dateNode && $dateNode->length > 0) {
+                $dateRaw = '';
+                $dateCandidate = $dateNode->item(0);
+                if ($dateCandidate && method_exists($dateCandidate, 'getAttribute')) {
+                    $dateRaw = (string)$dateCandidate->getAttribute('content');
+                }
+                if ($dateRaw === '') {
+                    $dateRaw = trim((string)$dateCandidate->textContent);
+                }
+                $timestamp = strtotime(str_replace('г.', '', $dateRaw));
+                if ($timestamp) {
+                    $date = gmdate('Y-m-d', $timestamp);
+                }
+            }
+
+            $ratingNode = $xpath->query('.//*[@aria-label and contains(@aria-label, "Оценка")]', $container);
+            if ($ratingNode && $ratingNode->length > 0) {
+                $aria = (string)$ratingNode->item(0)->getAttribute('aria-label');
+                if (preg_match('/(\d+)/u', $aria, $ratingMatch)) {
+                    $rating = max(1, min(5, (int)$ratingMatch[1]));
+                }
+            }
+        }
+
+        $hash = md5($author . '|' . $date . '|' . $text);
+        if (isset($dedupe[$hash])) {
+            continue;
+        }
+
+        $dedupe[$hash] = true;
+        $result[] = [
+            'id' => 0,
+            'source' => 'yandex_maps',
+            'org_id' => $orgId,
+            'author' => $author,
+            'rating' => $rating,
+            'date' => $date,
+            'text' => $text,
+            'reply' => '',
+            'replied_at' => null,
+        ];
+    }
+
+    return $result;
+}
+
 function parseYandexReviews(string $html, string $orgId): array
 {
     $result = [];
@@ -352,6 +458,19 @@ function parseYandexReviews(string $html, string $orgId): array
 
             $dedupe[$hash] = true;
             $result[] = $mapped;
+        }
+    }
+
+    if (count($result) === 0) {
+        $microdataReviews = parseYandexReviewsFromMicrodata($html, $orgId);
+        foreach ($microdataReviews as $review) {
+            $hash = md5($review['author'] . '|' . $review['date'] . '|' . $review['text']);
+            if (isset($dedupe[$hash])) {
+                continue;
+            }
+
+            $dedupe[$hash] = true;
+            $result[] = $review;
         }
     }
 
