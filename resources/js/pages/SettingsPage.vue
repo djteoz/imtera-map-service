@@ -10,32 +10,44 @@
         Укажите ссылку на страницу отзывов организации в Яндекс.Картах.
       </p>
 
-      <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-        Можно выбрать организацию прямо здесь: укажите ключ JavaScript API, нажмите «Проверить ключ и открыть карту», найдите организацию и выберите её в результатах поиска.
+      <div
+        class="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600"
+      >
+        Можно выбрать организацию прямо здесь: используется ключ из backend-конфига
+        по умолчанию. Поле ниже — дополнительная опция для замены ключа.
       </div>
 
       <div class="flex flex-col gap-6">
         <label class="flex flex-col gap-2">
-          <span class="text-sm font-medium text-slate-700">Yandex JavaScript API key</span>
+          <span class="text-sm font-medium text-slate-700"
+            >Доп. Yandex JavaScript API key (опционально)</span
+          >
           <div class="flex flex-wrap items-center gap-3">
             <input
-              v-model.trim="yandexApiKey"
+              v-model.trim="yandexApiKeyOverride"
               type="text"
               aria-label="Yandex API Key"
-              placeholder="Введите API ключ"
+              placeholder="Оставьте пустым, чтобы использовать ключ по умолчанию"
               class="h-11 min-w-[260px] flex-1 rounded-md border border-slate-300 px-3 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             />
 
             <button
               type="button"
               @click="initMap"
-              :disabled="mapLoading || !yandexApiKey"
+              :disabled="mapLoading || !effectiveMapApiKey"
               class="inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
             >
-              {{ mapLoading ? "Подключение..." : "Проверить ключ и открыть карту" }}
+              {{ mapLoading ? "Подключение..." : "Открыть карту" }}
             </button>
           </div>
-          <p v-if="mapStatus" class="text-xs" :class="mapError ? 'text-red-600' : 'text-emerald-700'">
+          <p v-if="defaultYandexApiKey" class="text-xs text-slate-500">
+            Ключ по умолчанию из backend-конфига подключён.
+          </p>
+          <p
+            v-if="mapStatus"
+            class="text-xs"
+            :class="mapError ? 'text-red-600' : 'text-emerald-700'"
+          >
             {{ mapStatus }}
           </p>
         </label>
@@ -92,14 +104,13 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { axios } from "../bootstrap";
 import AppFrame from "../components/AppFrame.vue";
 
-const MAP_KEY_STORAGE = "ymaps_api_key";
-
 const yandexUrl = ref("");
-const yandexApiKey = ref("");
+const yandexApiKeyOverride = ref("");
+const defaultYandexApiKey = ref("");
 const message = ref("");
 const isError = ref(false);
 const importing = ref(false);
@@ -111,6 +122,13 @@ const mapReady = ref(false);
 
 let ymapsMap = null;
 let ymapsSearchControl = null;
+
+const effectiveMapApiKey = computed(() => {
+  return (
+    String(yandexApiKeyOverride.value || "").trim() ||
+    String(defaultYandexApiKey.value || "").trim()
+  );
+});
 
 const extractOrgId = (value) => {
   const raw = String(value || "");
@@ -144,7 +162,8 @@ const bindSearchResultHandler = () => {
 
       const allProps = result.properties?.getAll?.() || {};
       const companyMeta =
-        allProps?.CompanyMetaData || allProps?.metaDataProperty?.CompanyMetaData;
+        allProps?.CompanyMetaData ||
+        allProps?.metaDataProperty?.CompanyMetaData;
 
       const orgId =
         extractOrgId(companyMeta?.id) ||
@@ -203,7 +222,8 @@ const loadYmaps = (apiKey) =>
   });
 
 const initMap = async () => {
-  if (!yandexApiKey.value) {
+  const mapApiKey = effectiveMapApiKey.value;
+  if (!mapApiKey) {
     mapStatus.value = "Введите API ключ.";
     mapError.value = true;
     return;
@@ -214,8 +234,7 @@ const initMap = async () => {
   mapError.value = false;
 
   try {
-    localStorage.setItem(MAP_KEY_STORAGE, yandexApiKey.value);
-    const ymaps = await loadYmaps(yandexApiKey.value);
+    const ymaps = await loadYmaps(mapApiKey);
 
     if (!mapContainer.value) {
       throw new Error("Контейнер карты недоступен.");
@@ -245,7 +264,8 @@ const initMap = async () => {
     bindSearchResultHandler();
 
     mapReady.value = true;
-    mapStatus.value = "Ключ валиден. Карта загружена — выберите организацию в поиске.";
+    mapStatus.value =
+      "Ключ валиден. Карта загружена — выберите организацию в поиске.";
     mapError.value = false;
   } catch (error) {
     mapReady.value = false;
@@ -257,11 +277,15 @@ const initMap = async () => {
 };
 
 onMounted(async () => {
-  yandexApiKey.value = localStorage.getItem(MAP_KEY_STORAGE) || "";
-
   try {
     const { data } = await axios.get("/api/settings");
     yandexUrl.value = data?.yandex_url || "";
+    yandexApiKeyOverride.value = data?.yandex_maps_api_key || "";
+    defaultYandexApiKey.value = data?.yandex_maps_api_key_default || "";
+
+    if (effectiveMapApiKey.value) {
+      await initMap();
+    }
   } catch {
     message.value = "Не удалось загрузить настройки";
     isError.value = true;
@@ -283,6 +307,7 @@ const save = async () => {
   try {
     await axios.post("/api/settings", {
       yandex_url: yandexUrl.value,
+      yandex_maps_api_key: yandexApiKeyOverride.value,
     });
     message.value = "Ссылка сохранена";
   } catch (error) {

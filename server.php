@@ -53,6 +53,95 @@ function requestData(): array
     return is_array($decoded) ? $decoded : [];
 }
 
+function getDefaultYandexMapsApiKey(): string
+{
+    $envKey = trim((string)(getenv('YANDEX_MAPS_API_KEY') ?: ''));
+    if ($envKey !== '') {
+        return $envKey;
+    }
+
+    return 'REPLACE_WITH_IMTERA_YANDEX_MAPS_KEY';
+}
+
+function decodeHtmlText(string $raw): string
+{
+    $decoded = html_entity_decode($raw, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $decoded = strip_tags($decoded);
+    return trim((string)(preg_replace('/\s+/u', ' ', $decoded) ?? ''));
+}
+
+function parseRussianDateToIso(string $rawDate): string
+{
+    $rawDate = mb_strtolower(trim($rawDate));
+    $rawDate = trim(str_replace(['г.', 'г', ','], '', $rawDate));
+    $rawDate = preg_replace('/\s+/u', ' ', $rawDate) ?? '';
+
+    $months = [
+        'января' => '01',
+        'февраля' => '02',
+        'марта' => '03',
+        'апреля' => '04',
+        'мая' => '05',
+        'июня' => '06',
+        'июля' => '07',
+        'августа' => '08',
+        'сентября' => '09',
+        'октября' => '10',
+        'ноября' => '11',
+        'декабря' => '12',
+    ];
+
+    if (preg_match('/^(\d{1,2})\s+([а-яё]+)\s+(\d{4})$/u', $rawDate, $parts)) {
+        $day = str_pad((string)((int)$parts[1]), 2, '0', STR_PAD_LEFT);
+        $month = $months[$parts[2]] ?? '';
+        $year = (int)$parts[3];
+
+        if ($month !== '') {
+            return sprintf('%04d-%s-%s', $year, $month, $day);
+        }
+    }
+
+    if (preg_match('/^(\d{1,2})\s+([а-яё]+)$/u', $rawDate, $parts)) {
+        $day = str_pad((string)((int)$parts[1]), 2, '0', STR_PAD_LEFT);
+        $month = $months[$parts[2]] ?? '';
+        if ($month !== '') {
+            $year = (int)gmdate('Y');
+            $candidate = sprintf('%04d-%s-%s', $year, $month, $day);
+
+            if (strtotime($candidate) > (time() + 86400 * 2)) {
+                $candidate = sprintf('%04d-%s-%s', $year - 1, $month, $day);
+            }
+
+            return $candidate;
+        }
+    }
+
+    $timestamp = strtotime($rawDate);
+    return $timestamp ? gmdate('Y-m-d', $timestamp) : gmdate('Y-m-d');
+}
+
+function parseStarsFromListHtml(string $starsHtml): int
+{
+    if (!preg_match_all('#<li class="stars-list__star([^\"]*)">#u', $starsHtml, $matches)) {
+        return 5;
+    }
+
+    $score = 0.0;
+    foreach ($matches[1] as $classTail) {
+        $tail = (string)$classTail;
+        if (str_contains($tail, '_empty')) {
+            $score += 0;
+        } elseif (str_contains($tail, '_half')) {
+            $score += 0.5;
+        } else {
+            $score += 1;
+        }
+    }
+
+    $rounded = (int)round($score);
+    return max(1, min(5, $rounded));
+}
+
 function renderDemoHtml(string $projectRoot): string
 {
     $manifestPath = $projectRoot . '/public/build/manifest.json';
@@ -417,6 +506,75 @@ function parseYandexReviewsFromMicrodata(string $html, string $orgId): array
     return $result;
 }
 
+function parseYandexReviewsFromPageBlocks(string $html, string $orgId): array
+{
+    $bodyMatches = [];
+    preg_match_all('#itemProp="reviewBody"[^>]*>.*?<span[^>]*class="\s*spoiler-view__text-container"[^>]*>(.*?)</span>#su', $html, $bodyMatches, PREG_OFFSET_CAPTURE);
+
+    if (empty($bodyMatches[1])) {
+        return [];
+    }
+
+    $result = [];
+    $dedupe = [];
+
+    foreach ($bodyMatches[1] as $bodyMatch) {
+        $rawText = (string)($bodyMatch[0] ?? '');
+        $offset = (int)($bodyMatch[1] ?? 0);
+
+        $text = decodeHtmlText($rawText);
+        if ($text === '') {
+            continue;
+        }
+
+        $windowStart = max(0, $offset - 4500);
+        $windowLength = min(6500, max(0, strlen($html) - $windowStart));
+        $window = substr($html, $windowStart, $windowLength);
+
+        $author = 'Пользователь Яндекс';
+        if (preg_match_all('#<span itemProp="name"[^>]*>(.*?)</span>#su', $window, $authorMatches) && !empty($authorMatches[1])) {
+            $author = decodeHtmlText((string)end($authorMatches[1]));
+            if ($author === '') {
+                $author = 'Пользователь Яндекс';
+            }
+        }
+
+        $date = gmdate('Y-m-d');
+        if (preg_match_all('#<meta itemProp="datePublished"[^>]*content="([^"]+)"#su', $window, $dateMatches) && !empty($dateMatches[1])) {
+            $dateRaw = trim((string)end($dateMatches[1]));
+            $timestamp = strtotime($dateRaw);
+            $date = $timestamp ? gmdate('Y-m-d', $timestamp) : parseRussianDateToIso($dateRaw);
+        }
+
+        $rating = 5;
+        if (preg_match_all('/aria-label="Оценка\s*([0-9]+)(?:[\.,]([0-9]+))?\s*(?:из|Из)?\s*5"/u', $window, $ratingMatches, PREG_SET_ORDER) && !empty($ratingMatches)) {
+            $lastRating = end($ratingMatches);
+            $integer = (int)($lastRating[1] ?? 5);
+            $rating = max(1, min(5, $integer));
+        }
+
+        $hash = md5($author . '|' . $date . '|' . $rating . '|' . $text);
+        if (isset($dedupe[$hash])) {
+            continue;
+        }
+
+        $dedupe[$hash] = true;
+        $result[] = [
+            'id' => 0,
+            'source' => 'yandex_maps',
+            'org_id' => $orgId,
+            'author' => $author,
+            'rating' => $rating,
+            'date' => $date,
+            'text' => $text,
+            'reply' => '',
+            'replied_at' => null,
+        ];
+    }
+
+    return $result;
+}
+
 function parseYandexReviews(string $html, string $orgId): array
 {
     $result = [];
@@ -465,6 +623,19 @@ function parseYandexReviews(string $html, string $orgId): array
         $microdataReviews = parseYandexReviewsFromMicrodata($html, $orgId);
         foreach ($microdataReviews as $review) {
             $hash = md5($review['author'] . '|' . $review['date'] . '|' . $review['text']);
+            if (isset($dedupe[$hash])) {
+                continue;
+            }
+
+            $dedupe[$hash] = true;
+            $result[] = $review;
+        }
+    }
+
+    if (count($result) === 0) {
+        $blockReviews = parseYandexReviewsFromPageBlocks($html, $orgId);
+        foreach ($blockReviews as $review) {
+            $hash = md5($review['author'] . '|' . $review['date'] . '|' . $review['rating'] . '|' . $review['text']);
             if (isset($dedupe[$hash])) {
                 continue;
             }
@@ -542,29 +713,48 @@ function parseYandexWidgetReviews(string $orgId): array
     }
 
     $reviews = [];
+    $dedupe = [];
 
-    $pattern = '#<div class="comment">.*?<p class="comment__name">(.*?)</p>.*?<p class="comment__date">(.*?)</p>.*?<(?:p|div) class="comment__text">(.*?)</(?:p|div)>#su';
-    if (preg_match_all($pattern, $html, $matches, PREG_SET_ORDER)) {
-        foreach ($matches as $index => $match) {
-            $author = trim(strip_tags(html_entity_decode((string)($match[1] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
-            $dateRaw = trim(strip_tags(html_entity_decode((string)($match[2] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
-            $textRaw = (string)($match[3] ?? '');
+    $parts = preg_split('#<div class="comment">#u', $html);
+    if (is_array($parts)) {
+        foreach (array_slice($parts, 1) as $part) {
+            if (!preg_match('#<p class="comment__name">(.*?)</p>#su', $part, $authorMatch)) {
+                continue;
+            }
 
-            $text = trim(preg_replace('/\s+/u', ' ', strip_tags(html_entity_decode($textRaw, ENT_QUOTES | ENT_HTML5, 'UTF-8'))));
+            if (!preg_match('#<p class="comment__date">(.*?)</p>#su', $part, $dateMatch)) {
+                continue;
+            }
+
+            if (!preg_match('#<(?:p|div) class="comment__text">(.*?)</(?:p|div)>#su', $part, $textMatch)) {
+                continue;
+            }
+
+            $author = decodeHtmlText((string)($authorMatch[1] ?? ''));
+            $date = parseRussianDateToIso(decodeHtmlText((string)($dateMatch[1] ?? '')));
+            $text = decodeHtmlText((string)($textMatch[1] ?? ''));
 
             if ($author === '' || $text === '') {
                 continue;
             }
 
-            $timestamp = strtotime(str_replace('г.', '', $dateRaw));
-            $date = $timestamp ? gmdate('Y-m-d', $timestamp) : gmdate('Y-m-d');
+            $rating = 5;
+            if (preg_match('#<div class="comment__stars">.*?<ul class="stars-list">(.*?)</ul>.*?</div>#su', $part, $starsMatch)) {
+                $rating = parseStarsFromListHtml((string)($starsMatch[1] ?? ''));
+            }
 
+            $hash = md5($author . '|' . $date . '|' . $rating . '|' . $text);
+            if (isset($dedupe[$hash])) {
+                continue;
+            }
+
+            $dedupe[$hash] = true;
             $reviews[] = [
-                'id' => $index + 1,
+                'id' => count($reviews) + 1,
                 'source' => 'yandex_widget',
                 'org_id' => $orgId,
                 'author' => $author,
-                'rating' => 5,
+                'rating' => $rating,
                 'date' => $date,
                 'text' => $text,
                 'reply' => '',
@@ -692,7 +882,16 @@ if (str_starts_with($uri, '/api/')) {
 
     if (in_array($uri, ['/api/settings', '/api/public/settings'], true)) {
         if ($method === 'GET') {
-            jsonResponse(readJson($settingsFile, []));
+            $settings = readJson($settingsFile, []);
+            $defaultMapApiKey = getDefaultYandexMapsApiKey();
+            $settings['yandex_maps_api_key_default'] = $defaultMapApiKey;
+
+            $customMapApiKey = trim((string)($settings['yandex_maps_api_key'] ?? ''));
+            $settings['effective_yandex_maps_api_key'] = $customMapApiKey !== ''
+                ? $customMapApiKey
+                : $defaultMapApiKey;
+
+            jsonResponse($settings);
             return true;
         }
 
@@ -711,8 +910,15 @@ if (str_starts_with($uri, '/api/')) {
                 'yandex_org_id' => $parsed['org_id'] ?? null,
                 'yandex_reviews_url' => $parsed['reviews_url'] ?? null,
                 'yandex_widget_url' => isset($parsed['org_id']) ? ('https://yandex.ru/maps-reviews-widget/' . $parsed['org_id'] . '?comments') : null,
+                'yandex_maps_api_key' => trim((string)($data['yandex_maps_api_key'] ?? '')),
             ];
             writeJson($settingsFile, $settings);
+
+            $settings['yandex_maps_api_key_default'] = getDefaultYandexMapsApiKey();
+            $settings['effective_yandex_maps_api_key'] = trim((string)($settings['yandex_maps_api_key'] ?? '')) !== ''
+                ? (string)$settings['yandex_maps_api_key']
+                : (string)$settings['yandex_maps_api_key_default'];
+
             jsonResponse(['ok' => true, 'settings' => $settings]);
             return true;
         }

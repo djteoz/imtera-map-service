@@ -1,24 +1,24 @@
 {
-  "_SettingsPage-BZd9abFe.js": {
-    "file": "assets/SettingsPage-BZd9abFe.js",
+  "_SettingsPage-TikLQTnd.js": {
+    "file": "assets/SettingsPage-TikLQTnd.js",
     "name": "SettingsPage"
   },
   "resources/js/app.js": {
-    "file": "assets/app-CvvEMUeu.js",
+    "file": "assets/app-Cw71H-H4.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
-      "_SettingsPage-BZd9abFe.js"
+      "_SettingsPage-TikLQTnd.js"
     ]
   },
   "resources/js/demo.js": {
-    "file": "assets/demo-CiOu8xFH.js",
+    "file": "assets/demo-D5SAu-8_.js",
     "name": "demo",
     "src": "resources/js/demo.js",
     "isEntry": true,
     "imports": [
-      "_SettingsPage-BZd9abFe.js"
+      "_SettingsPage-TikLQTnd.js"
     ],
     "css": [
       "assets/demo-CLvi78Ig.css"

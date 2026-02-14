@@ -35,6 +35,7 @@ DB_DATABASE=/app/database/database.sqlite
 CACHE_DRIVER=file
 SESSION_DRIVER=file
 LOG_LEVEL=error
+YANDEX_MAPS_API_KEY=REPLACE_WITH_IMTERA_YANDEX_MAPS_KEY
 ```
 
 ### 4. Генерация APP_KEY
