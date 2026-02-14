@@ -1,33 +1,63 @@
-# Imtera — skeleton
+# Imtera Map Service
 
-This repository contains a minimal Laravel + Vue skeleton for the Yandex Reviews integration UI.
+Сервис для импорта и управления отзывами из Яндекс.Карт.
 
-What I added:
+Стек: **PHP (runtime API)** + **Vue 3** + **TailwindCSS** + **Vite**.
 
-- semantic colors and style‑guide (SCSS + Tailwind tokens)
-- Laravel basic skeleton (routes, controllers, models)
-- API endpoints for auth and settings
-- Vue settings page and login placeholder
-- Migrations for users, settings, reviews
+## Что реализовано
 
-Quick setup (Windows / \*nix)
+- Авторизация: регистрация / вход / выход
+- Настройки интеграции Яндекс
+- Импорт отзывов по ссылке организации
+- Пагинация и сортировка на сервере
+- Карта Яндекс в настройках (ключ по умолчанию берётся из backend-конфига)
 
-1. Install PHP / Composer / Node.js
-2. Clone & install
+## Локальный запуск
+
+Требования:
+
+- PHP 8+
+- Node.js 18+
+
+Команды:
 
 ```bash
-composer install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate
 npm install
 npm run dev
-php artisan serve
 ```
 
-Open http://127.0.0.1:8000 — settings UI is available (auth placeholder / API ready).
+Для production-сборки:
 
-Notes
+```bash
+npm run build
+```
 
-- Authentication implemented with API tokens (Sanctum recommended to install and configure).
-- Importer is mocked (SettingsController@import) — next step is to implement scraper/worker.
+## Переменные окружения
+
+Минимально важная переменная:
+
+```env
+YANDEX_MAPS_API_KEY=your_key_here
+```
+
+Если `yandex_maps_api_key` не задан в сохранённых настройках пользователя,
+для карты используется `YANDEX_MAPS_API_KEY` из backend-конфига.
+
+## Основные пути
+
+- UI: `/demo.html`
+- API settings: `/api/settings` и `/api/public/settings`
+- API import: `/api/import` и `/api/public/import`
+- API reviews: `/api/reviews` и `/api/public/reviews`
+
+## Структура
+
+- `app/`, `bootstrap/`, `config/`, `database/`, `routes/` — Laravel-структура
+- `resources/js` — Vue-страницы и компоненты
+- `resources/css`, `scss`, `tailwind.config.js` — стили и Tailwind
+- `public/build` — production-ассеты Vite
+- `server.php` — runtime-обработчик API и выдачи SPA
+
+## Деплой
+
+Подробные шаги и переменные: [DEPLOY.md](DEPLOY.md)
