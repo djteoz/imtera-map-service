@@ -2,7 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "composer install --no-dev --optimize-autoloader --no-interaction; npm ci; npm run build; mkdir -p storage/framework/{sessions,views,cache,testing} storage/logs bootstrap/cache; chmod -R a+rw storage bootstrap/cache; touch database/database.sqlite; php artisan migrate --force; php artisan db:seed --force"
+    "buildCommand": "composer install --no-dev --optimize-autoloader --no-interaction; npm ci; npm run build; mkdir -p storage/framework/{sessions,views,cache,testing} storage/logs bootstrap/cache; chmod -R a+rwx storage bootstrap/cache; touch database/database.sqlite; php artisan migrate --force; php artisan db:seed --force"
   },
   "deploy": {
     "startCommand": "php -S 0.0.0.0:$PORT -t public server.php",
