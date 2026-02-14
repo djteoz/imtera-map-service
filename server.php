@@ -458,9 +458,9 @@ function parseYandexReviewsFromMicrodata(string $html, string $orgId): array
             $container = $container->parentNode;
         }
 
-        $author = 'Пользователь Яндекс';
-        $date = gmdate('Y-m-d');
-        $rating = 5;
+        $author = '';
+        $date = '';
+        $rating = null;
 
         if ($container) {
             $nameNode = $xpath->query('.//*[@itemProp="name" or @itemprop="name"]', $container);
@@ -496,7 +496,11 @@ function parseYandexReviewsFromMicrodata(string $html, string $orgId): array
             }
         }
 
-        $hash = md5($author . '|' . $date . '|' . $text);
+        if ($author === '' || $date === '' || $rating === null) {
+            continue;
+        }
+
+        $hash = md5($author . '|' . $date . '|' . $rating . '|' . $text);
         if (isset($dedupe[$hash])) {
             continue;
         }
