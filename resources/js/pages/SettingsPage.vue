@@ -10,6 +10,17 @@
         Укажите ссылку на страницу отзывов организации в Яндекс.Картах.
       </p>
 
+      <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+        Можно выбрать организацию прямо на карте:
+        <a
+          href="https://yandex.ru/maps/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="ml-1 font-semibold text-sky-600 hover:underline"
+        >Открыть Яндекс.Карты</a>
+        → открыть карточку организации → вкладка «Отзывы» → скопировать URL и вставить сюда.
+      </div>
+
       <div class="flex flex-col gap-6">
         <label class="flex flex-col gap-2">
           <span class="text-sm font-medium text-slate-700"

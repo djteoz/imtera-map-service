@@ -201,11 +201,24 @@ function parseYandexInput(?string $inputUrl): ?array
     }
 
     $path = (string)($parts['path'] ?? '');
-    if (!preg_match('#/org/[^/]+/(\d+)/reviews/?#u', $path, $matches)) {
-        return null;
+    $query = (string)($parts['query'] ?? '');
+
+    $orgId = '';
+    if (preg_match('#/org/[^/]+/(\d+)(?:/reviews/?)?#u', $path, $matches)) {
+        $orgId = (string)$matches[1];
     }
 
-    $orgId = (string)$matches[1];
+    if ($orgId === '' && preg_match('/(?:^|[?&])oid=(\d{6,})/u', $query, $oidQuery)) {
+        $orgId = (string)$oidQuery[1];
+    }
+
+    if ($orgId === '' && preg_match('/oid%3D(\d{6,})/u', $inputUrl, $oidEncoded)) {
+        $orgId = (string)$oidEncoded[1];
+    }
+
+    if ($orgId === '') {
+        return null;
+    }
 
     return [
         'org_id' => $orgId,
@@ -249,6 +262,10 @@ function collectReviewNodes($node, array &$bucket): void
                 break;
             }
         }
+    }
+
+    if (!empty($node['reviewBody']) || !empty($node['description'])) {
+        $bucket[] = $node;
     }
 
     foreach ($node as $value) {
@@ -335,6 +352,39 @@ function parseYandexReviews(string $html, string $orgId): array
 
             $dedupe[$hash] = true;
             $result[] = $mapped;
+        }
+    }
+
+    if (count($result) === 0) {
+        if (preg_match_all('/"reviewBody"\s*:\s*"(.*?)"/u', $html, $bodyMatches)) {
+            foreach ($bodyMatches[1] as $index => $rawBody) {
+                $text = trim(html_entity_decode(str_replace(['\\n', '\\t', '\\r', '\\"', '\\\\'], ["\n", ' ', ' ', '"', '\\'], (string)$rawBody), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if ($text === '') {
+                    continue;
+                }
+
+                $hash = md5($text);
+                if (isset($dedupe[$hash])) {
+                    continue;
+                }
+
+                $dedupe[$hash] = true;
+                $result[] = [
+                    'id' => 0,
+                    'source' => 'yandex_maps',
+                    'org_id' => $orgId,
+                    'author' => 'Пользователь Яндекс',
+                    'rating' => 5,
+                    'date' => gmdate('Y-m-d'),
+                    'text' => $text,
+                    'reply' => '',
+                    'replied_at' => null,
+                ];
+
+                if (count($result) >= 100) {
+                    break;
+                }
+            }
         }
     }
 
@@ -544,13 +594,37 @@ if (str_starts_with($uri, '/api/')) {
 
         $page = max(1, (int)($_GET['page'] ?? 1));
         $perPage = max(1, min(100, (int)($_GET['per_page'] ?? 5)));
-        $sort = (string)($_GET['sort'] ?? 'newest');
+        $sort = (string)($_GET['sort'] ?? 'default');
 
-        usort($reviews, static function (array $left, array $right) use ($sort): int {
-            $leftDate = strtotime((string)($left['date'] ?? '')) ?: 0;
-            $rightDate = strtotime((string)($right['date'] ?? '')) ?: 0;
-            return $sort === 'oldest' ? ($leftDate <=> $rightDate) : ($rightDate <=> $leftDate);
-        });
+        if ($sort === 'newest' || $sort === 'oldest') {
+            usort($reviews, static function (array $left, array $right) use ($sort): int {
+                $leftDate = strtotime((string)($left['date'] ?? '')) ?: 0;
+                $rightDate = strtotime((string)($right['date'] ?? '')) ?: 0;
+                return $sort === 'oldest' ? ($leftDate <=> $rightDate) : ($rightDate <=> $leftDate);
+            });
+        } elseif ($sort === 'negative') {
+            usort($reviews, static function (array $left, array $right): int {
+                $ratingCmp = ((int)($left['rating'] ?? 0)) <=> ((int)($right['rating'] ?? 0));
+                if ($ratingCmp !== 0) {
+                    return $ratingCmp;
+                }
+
+                $leftDate = strtotime((string)($left['date'] ?? '')) ?: 0;
+                $rightDate = strtotime((string)($right['date'] ?? '')) ?: 0;
+                return $rightDate <=> $leftDate;
+            });
+        } elseif ($sort === 'positive') {
+            usort($reviews, static function (array $left, array $right): int {
+                $ratingCmp = ((int)($right['rating'] ?? 0)) <=> ((int)($left['rating'] ?? 0));
+                if ($ratingCmp !== 0) {
+                    return $ratingCmp;
+                }
+
+                $leftDate = strtotime((string)($left['date'] ?? '')) ?: 0;
+                $rightDate = strtotime((string)($right['date'] ?? '')) ?: 0;
+                return $rightDate <=> $leftDate;
+            });
+        }
 
         $knownTotal = (int)($importMeta['total_available'] ?? 0);
         $total = max(count($reviews), $knownTotal);

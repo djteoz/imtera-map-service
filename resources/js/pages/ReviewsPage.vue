@@ -18,8 +18,10 @@
               v-model="sortOrder"
               class="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700"
             >
-              <option value="newest">Сначала новые</option>
-              <option value="oldest">Сначала старые</option>
+              <option value="default">По умолчанию</option>
+              <option value="newest">По новизне</option>
+              <option value="negative">Сначала отрицательные</option>
+              <option value="positive">Сначала положительные</option>
             </select>
           </div>
         </div>
@@ -141,7 +143,7 @@ import AppFrame from "../components/AppFrame.vue";
 import { axios } from "../bootstrap";
 
 const reviews = ref([]);
-const sortOrder = ref("newest");
+const sortOrder = ref("default");
 const currentPage = ref(1);
 const pageSize = 5;
 const totalReviews = ref(0);

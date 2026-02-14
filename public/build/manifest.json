@@ -1,31 +1,31 @@
 {
-  "_SettingsPage-C00NjP8m.js": {
-    "file": "assets/SettingsPage-C00NjP8m.js",
+  "_SettingsPage-DPXeGlVL.js": {
+    "file": "assets/SettingsPage-DPXeGlVL.js",
     "name": "SettingsPage"
   },
   "resources/js/app.js": {
-    "file": "assets/app-BtGcqIBS.js",
+    "file": "assets/app-BQmrwZVt.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
-      "_SettingsPage-C00NjP8m.js"
+      "_SettingsPage-DPXeGlVL.js"
     ]
   },
   "resources/js/demo.js": {
-    "file": "assets/demo-CZL57ypq.js",
+    "file": "assets/demo-DHzQZbBU.js",
     "name": "demo",
     "src": "resources/js/demo.js",
     "isEntry": true,
     "imports": [
-      "_SettingsPage-C00NjP8m.js"
+      "_SettingsPage-DPXeGlVL.js"
     ],
     "css": [
-      "assets/demo-BqIXGbh1.css"
+      "assets/demo-DnK0CXKm.css"
     ]
   },
   "resources/sass/app.scss": {
-    "file": "assets/app-_vJ-3f5Y.css",
+    "file": "assets/app-CJLC4odA.css",
     "src": "resources/sass/app.scss",
     "isEntry": true
   }
