@@ -508,15 +508,60 @@ function parseYandexReviewsFromMicrodata(string $html, string $orgId): array
 
 function parseYandexReviewsFromPageBlocks(string $html, string $orgId): array
 {
+    $result = [];
+    $dedupe = [];
+
+    $cardMatches = [];
+    preg_match_all(
+        '#<span itemProp="name"[^>]*>(.*?)</span>.*?<meta itemProp="datePublished"[^>]*content="([^"]+)".*?aria-label="Оценка\s*([0-9])(?:[\.,]([0-9]))?\s*(?:Из|из)?\s*5".*?itemProp="reviewBody"[^>]*>.*?<span[^>]*class="[^"]*spoiler-view__text-container[^"]*"[^>]*>(.*?)</span>#su',
+        $html,
+        $cardMatches,
+        PREG_SET_ORDER
+    );
+
+    foreach ($cardMatches as $match) {
+        $author = decodeHtmlText((string)($match[1] ?? ''));
+        $dateRaw = trim((string)($match[2] ?? ''));
+        $ratingRaw = (string)($match[3] ?? '5');
+        $text = decodeHtmlText((string)($match[5] ?? ''));
+
+        if ($author === '' || $text === '') {
+            continue;
+        }
+
+        $timestamp = strtotime($dateRaw);
+        $date = $timestamp ? gmdate('Y-m-d', $timestamp) : parseRussianDateToIso($dateRaw);
+        $rating = max(1, min(5, (int)$ratingRaw));
+
+        $hash = md5($author . '|' . $date . '|' . $rating . '|' . $text);
+        if (isset($dedupe[$hash])) {
+            continue;
+        }
+
+        $dedupe[$hash] = true;
+        $result[] = [
+            'id' => 0,
+            'source' => 'yandex_maps',
+            'org_id' => $orgId,
+            'author' => $author,
+            'rating' => $rating,
+            'date' => $date,
+            'text' => $text,
+            'reply' => '',
+            'replied_at' => null,
+        ];
+    }
+
+    if (count($result) > 0) {
+        return $result;
+    }
+
     $bodyMatches = [];
     preg_match_all('#itemProp="reviewBody"[^>]*>.*?<span[^>]*class="\s*spoiler-view__text-container"[^>]*>(.*?)</span>#su', $html, $bodyMatches, PREG_OFFSET_CAPTURE);
 
     if (empty($bodyMatches[1])) {
         return [];
     }
-
-    $result = [];
-    $dedupe = [];
 
     foreach ($bodyMatches[1] as $bodyMatch) {
         $rawText = (string)($bodyMatch[0] ?? '');
@@ -642,39 +687,6 @@ function parseYandexReviews(string $html, string $orgId): array
 
             $dedupe[$hash] = true;
             $result[] = $review;
-        }
-    }
-
-    if (count($result) === 0) {
-        if (preg_match_all('/"reviewBody"\s*:\s*"(.*?)"/u', $html, $bodyMatches)) {
-            foreach ($bodyMatches[1] as $index => $rawBody) {
-                $text = trim(html_entity_decode(str_replace(['\\n', '\\t', '\\r', '\\"', '\\\\'], ["\n", ' ', ' ', '"', '\\'], (string)$rawBody), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                if ($text === '') {
-                    continue;
-                }
-
-                $hash = md5($text);
-                if (isset($dedupe[$hash])) {
-                    continue;
-                }
-
-                $dedupe[$hash] = true;
-                $result[] = [
-                    'id' => 0,
-                    'source' => 'yandex_maps',
-                    'org_id' => $orgId,
-                    'author' => 'Пользователь Яндекс',
-                    'rating' => 5,
-                    'date' => gmdate('Y-m-d'),
-                    'text' => $text,
-                    'reply' => '',
-                    'replied_at' => null,
-                ];
-
-                if (count($result) >= 100) {
-                    break;
-                }
-            }
         }
     }
 
