@@ -40,6 +40,10 @@ function isAuthorized() {
 const params = new URLSearchParams(window.location.search);
 
 if (params.get("logout") === "1") {
+  const token = getAuthPayload()?.token;
+  if (token) {
+    axios.post("/api/logout").catch(() => undefined);
+  }
   localStorage.removeItem(DEMO_AUTH_KEY);
   localStorage.removeItem(DEMO_KEY);
 }

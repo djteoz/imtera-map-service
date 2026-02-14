@@ -101,7 +101,8 @@ const runImport = async () => {
     });
 
     const imported = Number(data?.imported_count || 0);
-    message.value = `Импорт завершён. Загружено отзывов: ${imported}`;
+    const totalAvailable = Number(data?.total_available || imported);
+    message.value = `Импорт завершён. Загружено: ${imported}. Найдено на Яндексе: ${totalAvailable}`;
   } catch (error) {
     isError.value = true;
     message.value = error?.response?.data?.message || "Ошибка импорта";

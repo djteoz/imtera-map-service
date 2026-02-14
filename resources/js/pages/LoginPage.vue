@@ -4,9 +4,22 @@
       class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
     >
       <h1 class="mb-1 text-2xl font-semibold text-slate-800">Вход</h1>
-      <p class="mb-6 text-sm text-slate-500">Авторизация по логину и паролю</p>
+      <p class="mb-6 text-sm text-slate-500">
+        {{ isRegisterMode ? "Создание аккаунта" : "Авторизация по логину и паролю" }}
+      </p>
 
       <form class="flex flex-col gap-4" @submit.prevent="submit">
+        <label v-if="isRegisterMode" class="flex flex-col gap-2">
+          <span class="text-sm font-medium text-slate-700">Имя</span>
+          <input
+            v-model.trim="name"
+            type="text"
+            autocomplete="name"
+            required
+            class="h-11 rounded-md border border-slate-300 px-3 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+          />
+        </label>
+
         <label class="flex flex-col gap-2">
           <span class="text-sm font-medium text-slate-700">Email</span>
           <input
@@ -34,13 +47,24 @@
           :disabled="loading"
           class="inline-flex h-10 items-center justify-center rounded-md bg-sky-500 px-4 text-sm font-semibold text-white transition hover:bg-sky-600 disabled:opacity-60"
         >
-          {{ loading ? "Вход..." : "Войти" }}
+          {{ loading ? (isRegisterMode ? "Создание..." : "Вход...") : (isRegisterMode ? "Зарегистрироваться" : "Войти") }}
         </button>
 
         <p v-if="errorMessage" class="text-sm text-red-600">
           {{ errorMessage }}
         </p>
       </form>
+
+      <div class="mt-4 text-sm text-slate-600">
+        <span v-if="!isRegisterMode">
+          Нет аккаунта?
+          <a class="text-sky-600 hover:underline" href="/demo.html?page=login&mode=register">Зарегистрироваться</a>
+        </span>
+        <span v-else>
+          Уже есть аккаунт?
+          <a class="text-sky-600 hover:underline" href="/demo.html?page=login">Войти</a>
+        </span>
+      </div>
 
       <p class="mt-5 rounded-md bg-slate-50 p-3 text-xs text-slate-500">
         Демо-доступ: demo@imtera.ru / demo12345
@@ -54,7 +78,10 @@ import { ref } from "vue";
 import { axios } from "../bootstrap";
 
 const DEMO_AUTH_KEY = "demo_auth";
+const params = new URLSearchParams(window.location.search);
 
+const isRegisterMode = ref(params.get("mode") === "register");
+const name = ref("Imtera User");
 const email = ref("demo@imtera.ru");
 const password = ref("demo12345");
 const loading = ref(false);
@@ -78,10 +105,19 @@ const submit = async () => {
   errorMessage.value = "";
 
   try {
-    const { data } = await axios.post("/api/login", {
-      email: email.value,
-      password: password.value,
-    });
+    const endpoint = isRegisterMode.value ? "/api/register" : "/api/login";
+    const payload = isRegisterMode.value
+      ? {
+          name: name.value,
+          email: email.value,
+          password: password.value,
+        }
+      : {
+          email: email.value,
+          password: password.value,
+        };
+
+    const { data } = await axios.post(endpoint, payload);
 
     localStorage.setItem(DEMO_AUTH_KEY, JSON.stringify(data));
     window.location.replace(getNextUrl());

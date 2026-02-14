@@ -57,10 +57,10 @@
 
           <a
             href="/demo.html?page=login&logout=1"
-            class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+            class="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             aria-label="Выйти"
           >
-            ⇢
+            Выйти
           </a>
         </header>
 
@@ -131,6 +131,14 @@
             @click="isMobileMenuOpen = false"
           >
             Настройка
+          </a>
+
+          <a
+            href="/demo.html?page=login&logout=1"
+            class="mt-2 block rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+            @click="isMobileMenuOpen = false"
+          >
+            Выйти
           </a>
         </nav>
       </aside>
