@@ -52,8 +52,49 @@ function isAuthorizedRequest(): bool
     return str_starts_with($auth, 'Bearer ');
 }
 
+function renderDemoHtml(string $projectRoot): string
+{
+    $manifestPath = $projectRoot . '/public/build/manifest.json';
+    $entryJs = '/resources/js/demo.js';
+    $entryCss = '';
+
+    if (file_exists($manifestPath)) {
+        $manifestRaw = file_get_contents($manifestPath);
+        $manifest = json_decode((string) $manifestRaw, true);
+
+        if (is_array($manifest) && isset($manifest['resources/js/demo.js']['file'])) {
+            $entryJs = '/build/' . ltrim((string) $manifest['resources/js/demo.js']['file'], '/');
+        }
+
+        if (is_array($manifest) && isset($manifest['resources/js/demo.js']['css'][0])) {
+            $entryCss = '/build/' . ltrim((string) $manifest['resources/js/demo.js']['css'][0], '/');
+        }
+    }
+
+    $cssTag = $entryCss !== ''
+        ? '<link rel="stylesheet" href="' . htmlspecialchars($entryCss, ENT_QUOTES) . '">'
+        : '';
+
+    return '<!doctype html>'
+        . '<html><head><meta charset="utf-8" />'
+        . '<meta name="viewport" content="width=device-width, initial-scale=1.0" />'
+        . '<title>Imtera — UI Demo</title>'
+        . $cssTag
+        . '<style>body{font-family:Inter,ui-sans-serif,system-ui;margin:0;padding:0;}</style>'
+        . '</head><body><div id="demo-app"></div>'
+        . '<script type="module" src="' . htmlspecialchars($entryJs, ENT_QUOTES) . '"></script>'
+        . '</body></html>';
+}
+
 if ($uri === '/') {
-    readfile(__DIR__.'/public/demo.html');
+    header('Content-Type: text/html; charset=utf-8');
+    echo renderDemoHtml(__DIR__);
+    return true;
+}
+
+if ($uri === '/demo.html') {
+    header('Content-Type: text/html; charset=utf-8');
+    echo renderDemoHtml(__DIR__);
     return true;
 }
 

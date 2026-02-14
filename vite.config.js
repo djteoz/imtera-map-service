@@ -9,7 +9,11 @@ export default defineConfig(async () => {
     const laravel = laravelModule.default || laravelModule;
     plugins.push(
       laravel({
-        input: ["resources/js/app.js", "resources/sass/app.scss"],
+        input: [
+          "resources/js/app.js",
+          "resources/js/demo.js",
+          "resources/sass/app.scss",
+        ],
         refresh: true,
       }),
     );
