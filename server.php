@@ -424,7 +424,7 @@ function parseYandexWidgetReviews(string $orgId): array
 
     $reviews = [];
 
-    $pattern = '#<div class="comment">.*?<p class="comment__name">(.*?)</p>.*?<p class="comment__date">(.*?)</p>.*?<div class="comment__text">(.*?)</div>#su';
+    $pattern = '#<div class="comment">.*?<p class="comment__name">(.*?)</p>.*?<p class="comment__date">(.*?)</p>.*?<(?:p|div) class="comment__text">(.*?)</(?:p|div)>#su';
     if (preg_match_all($pattern, $html, $matches, PREG_SET_ORDER)) {
         foreach ($matches as $index => $match) {
             $author = trim(strip_tags(html_entity_decode((string)($match[1] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
@@ -437,7 +437,7 @@ function parseYandexWidgetReviews(string $orgId): array
                 continue;
             }
 
-            $timestamp = strtotime($dateRaw);
+            $timestamp = strtotime(str_replace('г.', '', $dateRaw));
             $date = $timestamp ? gmdate('Y-m-d', $timestamp) : gmdate('Y-m-d');
 
             $reviews[] = [
