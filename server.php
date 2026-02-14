@@ -781,7 +781,14 @@ if (str_starts_with($uri, '/api/')) {
             usort($reviews, static function (array $left, array $right) use ($sort): int {
                 $leftDate = strtotime((string)($left['date'] ?? '')) ?: 0;
                 $rightDate = strtotime((string)($right['date'] ?? '')) ?: 0;
-                return $sort === 'oldest' ? ($leftDate <=> $rightDate) : ($rightDate <=> $leftDate);
+                $dateCmp = $sort === 'oldest' ? ($leftDate <=> $rightDate) : ($rightDate <=> $leftDate);
+                if ($dateCmp !== 0) {
+                    return $dateCmp;
+                }
+
+                $leftId = (int)($left['id'] ?? 0);
+                $rightId = (int)($right['id'] ?? 0);
+                return $sort === 'oldest' ? ($leftId <=> $rightId) : ($rightId <=> $leftId);
             });
         } elseif ($sort === 'negative') {
             usort($reviews, static function (array $left, array $right): int {
@@ -792,7 +799,14 @@ if (str_starts_with($uri, '/api/')) {
 
                 $leftDate = strtotime((string)($left['date'] ?? '')) ?: 0;
                 $rightDate = strtotime((string)($right['date'] ?? '')) ?: 0;
-                return $rightDate <=> $leftDate;
+                $dateCmp = $rightDate <=> $leftDate;
+                if ($dateCmp !== 0) {
+                    return $dateCmp;
+                }
+
+                $leftId = (int)($left['id'] ?? 0);
+                $rightId = (int)($right['id'] ?? 0);
+                return $leftId <=> $rightId;
             });
         } elseif ($sort === 'positive') {
             usort($reviews, static function (array $left, array $right): int {
@@ -803,7 +817,14 @@ if (str_starts_with($uri, '/api/')) {
 
                 $leftDate = strtotime((string)($left['date'] ?? '')) ?: 0;
                 $rightDate = strtotime((string)($right['date'] ?? '')) ?: 0;
-                return $rightDate <=> $leftDate;
+                $dateCmp = $rightDate <=> $leftDate;
+                if ($dateCmp !== 0) {
+                    return $dateCmp;
+                }
+
+                $leftId = (int)($left['id'] ?? 0);
+                $rightId = (int)($right['id'] ?? 0);
+                return $rightId <=> $leftId;
             });
         }
 
